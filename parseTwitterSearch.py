@@ -49,27 +49,24 @@ try:
 	#here are the titles to the columns in csv file
 	writer.writerow(("Tweet Number","Author Handle", "Full Name", "Date", "Message", "Is Retweet", "Is Reply", "Retweeted from Author Handle", "Full Name of Author Retweeted", "Reply to Author", "Hashtags"))
 	for line in allpages:
-		lineStripped = line.rstrip()
-		handleMatch = re.search(r'(@[A-Za-z0-9_]+)\s+([A-Z][a-z][a-z])\s+([0-9-_]+)', line) # line with handle and timestamp #FIXME stop catching "@EnisBerberoglu1 and 3 others"
-		handleMatchYear = re.search(r'(@[A-Za-z0-9_]+)\s+([0-9-_]+\s+[A-Za-z]+\s+2?0?1?\d?)', line) # line with handle and timestamp with year
-		moreMatch = re.search(r'(^More)', line) # finds 'More' which precedes every tweet body
-		replyMatch = re.search(r'([0-9-_\,KM]* rep[A-Za-z]+ [0-9-_\,KM]* retweets? [0-9-_\,KM]* likes?)', line) # finds the reply/retweet count, which follows every tweet body
+		lineStripped = line.strip()
+		handleMatch = re.search(r'(@[A-Za-z0-9_]+)\s+([A-Z][a-z][a-z])\s+([0-9-_]+)', lineStripped) # line with handle and timestamp #FIXME stop catching "@EnisBerberoglu1 and 3 others"
+		handleMatchYear = re.search(r'(@[A-Za-z0-9_]+)\s+([0-9-_]+\s+[A-Za-z]+\s+2?0?1?\d?)', lineStripped) # line with handle and timestamp with year
+		moreMatch = re.search(r'(^More)', lineStripped) # finds 'More' which precedes every tweet body
+		replyMatch = re.search(r'([0-9-_\,KM]* rep[A-Za-z]+ [0-9-_\,KM]* retweets? [0-9-_\,KM]* likes?)', lineStripped) # finds the reply/retweet count, which follows every tweet body
 		#finds line with handle and timestamp
 		if (handleMatch or handleMatchYear):
+			fullNameMatch = re.search(r'(^.*?(?=Verified account|\s?@))', lineStripped)
+			if fullNameMatch:
+				fullName = fullNameMatch.group(1).strip()
 			#for current year
 			if handleMatch:
 #				print 'handleMatch'
-				fullNameMatch = re.search(r'(^.*?(?=Verified account|\s@))', line)
-				if fullNameMatch:
-					fullName = fullNameMatch.group(1).lstrip().rstrip()
 				myHandle = handleMatch.group(1)
 				myDate = handleMatch.group(3)  + ' ' +  handleMatch.group(2) + ' ' +  thisYear
 			#for past years
-			elif (handleMatchYear):
+			elif handleMatchYear:
 #				print ('match with year \r')
-				fullNameMatch = re.search(r'(^.*?(?=Verified account|\s@))', line)
-				if fullNameMatch:
-					fullName = fullNameMatch.group(1).lstrip().rstrip()
 				myHandle = handleMatchYear.group(1)
 				myDate = handleMatchYear.group(2)
 			lookForMessage = True #tells code to start looking for tweet body
@@ -83,34 +80,42 @@ try:
 #			output.write(line)
 			# print ('in the message \r')
 			#finds out if this message is a retweet
-			hashtagMatch = re.search(r'(#.[^\s]+)', line)
+			hashtagMatch = re.findall(r'(#.[^\s\.]+)', lineStripped)
 			if hashtagMatch:
+				hashtagMatchesTuple = tuple(hashtagMatch)
+				print len(hashtagMatch)
+				print hashtagMatchesTuple
 				if(hashtags == ''):
-					hashtags = hashtagMatch.group(0)
+					hashtags = " ".join(hashtagMatchesTuple)
+					print "empty hashtags"
 				else:
-					hashtags = hashtags + " " + hashtagMatch.group(0)
-
+					hashtags = hashtags + " " + " ".join(hashtagMatchesTuple)
+					print "adding hashtags"
 			retweetLine = 'Retweeted'
-			repliedMatch = re.search(r'(Replying to (@[A-Za-z0-9_]+))',line)
+			repliedToMatch = re.search(r'(Replying to (@[A-Za-z0-9_]+))',lineStripped)
 			if line.find(retweetLine)!=-1:
-				print "found retweet"
+				# print "found retweet"
 				isRetweet = True
 			# print retweetMatch
-			if re.search(r'(added,\n)',line):
+			if re.search(r'(added,\r?\n)',line):
 				retweetBody = True
-			if isRetweet:
-				retweetedHandleMatch = re.search(r'(\s(@[A-Za-z0-9_]+)\n)', line)
+				# print "carriage return found"
+			if retweetBody:
+				retweetedHandleMatch = re.search(r'(\s(@[A-Za-z0-9_]+)\r?\n)', line)
 				# print retweetedHandleMatch
-				if retweetedHandleMatch and not repliedMatch:
+				if (retweetedHandleMatch and not repliedToMatch):
 					print 'found retweeted handle'
-					fullNameMatchRetweet = re.search(r'(^.*?(?=Verified account|\s@))', line)
-					retweetedHandle = retweetedHandleMatch.group(0)
-					fullNameRetweeted = fullNameMatchRetweet.group(0)
+					fullNameMatchRetweet = re.search(r'(^.*?(?=Verified account|\s?@))', lineStripped)
+					retweetedHandle = retweetedHandleMatch.group(1)
+					fullNameRetweeted = fullNameMatchRetweet.group(1)
+					print fullNameRetweeted
+				# elif repliedToMatch:
+					# print "replied to found"
 			#if this is the first line of msg txt, add line without space at front
 			if (myMsg == ''):
-				if (repliedMatch):
+				if (repliedToMatch):
 					isReply = True
-					repliedAuthor = repliedMatch.group(2)
+					repliedAuthor = repliedToMatch.group(2)
 				myMsg = line
 			#if not the first line, add line to existing msg with space in between
 			else:
