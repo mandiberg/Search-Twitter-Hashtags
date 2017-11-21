@@ -28,17 +28,19 @@ output = open('output.csv', 'wt')
 
 #where the non-valuable info goes. useful for ensuring you aren't losing any data
 slop = open('slop.txt', 'w')
-
+prevLine = ''
 myHandle = ''
 myDate = ''
 myMsg = ''
 fullName = ''
+lookForYear = False
 isRetweet = False
 isReply = False
 inResults = False
 lookForMessage = False
 inMessage = False
 retweetBody = False
+lookForHandle = True
 tweetNumber = 0
 retweetedHandle = ''
 fullNameRetweeted = ''
@@ -49,34 +51,43 @@ try:
 	#here are the titles to the columns in csv file
 	writer.writerow(("Tweet Number","Author Handle", "Full Name", "Date", "Message", "Is Retweet", "Is Reply", "Retweeted from Author Handle", "Full Name of Author Retweeted", "Reply to Author", "Hashtags"))
 	for line in allpages:
+
+		handleMatch = re.search(r'(^@[A-Za-z0-9_]+\n)', line)
 		lineStripped = line.strip()
-		handleMatch = re.search(r'(@[A-Za-z0-9_]+)\s+([A-Z][a-z][a-z])\s+([0-9-_]+)', lineStripped) # line with handle and timestamp #FIXME stop catching "@EnisBerberoglu1 and 3 others"
-		handleMatchYear = re.search(r'(@[A-Za-z0-9_]+)\s+([0-9-_]+\s+[A-Za-z]+\s+2?0?1?\d?)', lineStripped) # line with handle and timestamp with year
+		dateMatch = re.search(r'^([A-Z][a-z][a-z]\s[0-9]+)$', lineStripped)
+		dateMatchYear = re.search(r'^([0-9]+\s[A-Z][a-z][a-z]\s2?0?1?\d?)$', lineStripped) # line with handle and timestamp with year
 		moreMatch = re.search(r'(^More)', lineStripped) # finds 'More' which precedes every tweet body
 		replyMatch = re.search(r'([0-9-_\,KM]* rep[A-Za-z]+ [0-9-_\,KM]* retweets? [0-9-_\,KM]* likes?)', lineStripped) # finds the reply/retweet count, which follows every tweet body
-		#finds line with handle and timestamp
-		if (handleMatch or handleMatchYear):
-			fullNameMatch = re.search(r'(^.*?(?=Verified account|\s?@))', lineStripped)
-			if fullNameMatch:
-				fullName = fullNameMatch.group(1).strip()
-			#for current year
-			if handleMatch:
-#				print 'handleMatch'
-				myHandle = handleMatch.group(1)
-				myDate = handleMatch.group(3)  + ' ' +  handleMatch.group(2) + ' ' +  thisYear
-			#for past years
-			elif handleMatchYear:
-#				print ('match with year \r')
-				myHandle = handleMatchYear.group(1)
-				myDate = handleMatchYear.group(2)
+		#finds line with handle
+		if (lookForHandle and handleMatch):
+			myHandle = handleMatch.group().strip()
+			fullNameMatch = re.search(r'(^.*?(?=Verified account|\n))', prevLine)
+			fullName = fullNameMatch.group().strip()
+			print myHandle
+			print fullName
+			lookForYear = True
+		if (lookForYear):
+			lookForHandle = False
+			if (dateMatch):
+				myDate = dateMatch.group() + ' ' + thisYear
+			elif (dateMatchYear):
+				myDate = dateMatchYear.group()
+			# print myDate
 			lookForMessage = True #tells code to start looking for tweet body
-
-		elif (moreMatch and lookForMessage is True):
-	#		print(line)
+		if (moreMatch and lookForMessage):
 			#finds the "more" at the start of the message, so next lines are the message
-			lookForMessage = False
+			lookForYear = False
 			inMessage = True
+			retweetLine = 'Retweeted'
+			if line.find(retweetLine)!=-1:
+				# print "found retweet"
+				isRetweet = True
 		elif (inMessage is True and not replyMatch):
+			if (isRetweet and handleMatch):
+				retweetedHandle = handleMatch.group().strip()
+				fullNameRetweetedMatch = re.search(r'(^.*?(?=Verified account|\n))', prevPrevLine)
+				if(fullNameRetweetedMatch):
+					fullNameRetweeted = fullNameRetweetedMatch.group().strip()
 #			output.write(line)
 			# print ('in the message \r')
 			#finds out if this message is a retweet
@@ -91,11 +102,9 @@ try:
 				else:
 					hashtags = hashtags + " " + " ".join(hashtagMatchesTuple)
 					print "adding hashtags"
-			retweetLine = 'Retweeted'
+
 			repliedToMatch = re.search(r'(Replying to (@[A-Za-z0-9_]+))',lineStripped)
-			if line.find(retweetLine)!=-1:
-				# print "found retweet"
-				isRetweet = True
+
 			# print retweetMatch
 			if re.search(r'(added,\r?\n)',line):
 				retweetBody = True
@@ -134,8 +143,15 @@ try:
 			isRetweet = False
 			isReply = False
 			inMessage = False
+			lookForHandle = True
+			retweetBody = False
+
 		else:
 			#print any line that hasn't been handled here to the slop file
 			slop.write(line + '\n')
+
+		prevPrevLine = prevLine
+		prevLine = line
+
 finally:
     output.close()
