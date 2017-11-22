@@ -46,10 +46,12 @@ retweetedHandle = ''
 fullNameRetweeted = ''
 repliedAuthor = ''
 hashtags = ''
+retweetMsg = []
+startGettingRTMSG = False
 try:
 	writer = csv.writer(output)
 	#here are the titles to the columns in csv file
-	writer.writerow(("Tweet Number","Author Handle", "Full Name", "Date", "Message", "Is Retweet", "Is Reply", "Retweeted from Author Handle", "Full Name of Author Retweeted", "Reply to Author", "Hashtags"))
+	writer.writerow(("Tweet Number","Author Handle", "Full Name", "Date", "Message", "Is Retweet", "Is Reply", "Retweeted from Author Handle", "Full Name of Author Retweeted","Retweet Message", "Reply to Author", "Hashtags"))
 	for line in allpages:
 
 		handleMatch = re.search(r'(^@[A-Za-z0-9_]+\n)', line)
@@ -86,6 +88,7 @@ try:
 			if (isRetweet and handleMatch):
 				retweetedHandle = handleMatch.group().strip()
 				fullNameRetweetedMatch = re.search(r'(^.*?(?=Verified account|\n))', prevPrevLine)
+				retweetBody = True
 				if(fullNameRetweetedMatch):
 					fullNameRetweeted = fullNameRetweetedMatch.group().strip()
 #			output.write(line)
@@ -107,16 +110,12 @@ try:
 
 			# print retweetMatch
 			if re.search(r'(added,\r?\n)',line):
-				retweetBody = True
-				# print "carriage return found"
-			if retweetBody:
-				retweetedHandleMatch = re.search(r'(\s(@[A-Za-z0-9_]+)\r?\n)', line)
+				print "carriage return found"
+			if (startGettingRTMSG and (replyMatch is not True)):
+				retweetMsg.append(line.strip())
 				# print retweetedHandleMatch
-				if (retweetedHandleMatch and not repliedToMatch):
-					print 'found retweeted handle'
-					fullNameMatchRetweet = re.search(r'(^.*?(?=Verified account|\s?@))', lineStripped)
-					retweetedHandle = retweetedHandleMatch.group(1)
-					fullNameRetweeted = fullNameMatchRetweet.group(1)
+				if (retweetBody and not repliedToMatch):
+
 					print fullNameRetweeted
 				# elif repliedToMatch:
 					# print "replied to found"
@@ -132,7 +131,7 @@ try:
 		elif (replyMatch and inMessage is True):
 			#write the data, and clear the variables for the next cycle
 			tweetNumber += 1
-			writer.writerow( (tweetNumber, myHandle, fullName, myDate , myMsg, isRetweet, isReply, retweetedHandle, fullNameRetweeted, repliedAuthor, hashtags) )
+			writer.writerow( (tweetNumber, myHandle, fullName, myDate , myMsg, isRetweet, isReply, retweetedHandle, fullNameRetweeted, ' '.join(retweetMsg), repliedAuthor, hashtags) )
 			myHandle = ''
 			myDate = ''
 			myMsg = ''
@@ -145,11 +144,14 @@ try:
 			inMessage = False
 			lookForHandle = True
 			retweetBody = False
+			retweetMsg = []
+			startGettingRTMSG = False
 
 		else:
 			#print any line that hasn't been handled here to the slop file
 			slop.write(line + '\n')
-
+		if(retweetBody):
+			startGettingRTMSG = True
 		prevPrevLine = prevLine
 		prevLine = line
 
