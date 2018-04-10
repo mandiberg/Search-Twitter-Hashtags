@@ -1,6 +1,7 @@
 import sys
 import re
 import csv
+import datetime
 
 '''
 This code parses the results of a twitter search into a CSV file.
@@ -17,11 +18,14 @@ Reply Tweets begin with a space (e.g. " @username This is my message"). It wasn'
 
 Written by Michael Mandiberg and licensed under the GPL
 '''
+
 # source file - copy your twitter search results into this file
 allpages = open('input.txt')
 
-#change this to the current year, as twitter does not display current year in in stamps
-thisYear = '2018'
+#asigning the current year, as twitter does not display current year in in stamps
+
+now = datetime.datetime.now()
+thisYear = str(now.year)
 
 #where the output goes
 output = open('output.csv', 'wt')
