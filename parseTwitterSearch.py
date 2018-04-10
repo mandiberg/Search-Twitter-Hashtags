@@ -21,7 +21,7 @@ Written by Michael Mandiberg and licensed under the GPL
 allpages = open('input.txt')
 
 #change this to the current year, as twitter does not display current year in in stamps
-thisYear = '2017'
+thisYear = '2018'
 
 #where the output goes
 output = open('output.csv', 'wt')
